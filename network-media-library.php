@@ -618,7 +618,7 @@ class Post_Thumbnail_Saver_REST {
 	 * Sets up the necessary action callback if the post is being saved from a REST request.
 	 */
 	public function __construct() {
-		if ( defined( 'REST_REQUEST' ) || REST_REQUEST ) {
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
 			add_action( 'rest_api_init', function () {
 				add_action( 'pre_post_update', [ $this, 'action_pre_post_update' ], 10, 2 );
 			});
