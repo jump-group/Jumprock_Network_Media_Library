@@ -90,6 +90,67 @@ function is_media_site() : bool {
 }
 
 /**
+ * Set media site url for icon if is a svg.
+ *
+ * @since 1.0.0
+ * @param string                 $widget_content The widget HTML output.
+ * @param \Elementor\Widget_Base $widget         The widget instance.
+ */
+function filter_icon_render( $widget_content, $widget ) {
+
+    if(is_media_site()) return $widget_content;
+
+    if ( str_contains($widget->get_name(), 'icon') ) {
+        //selected icon url
+		$widget_settings = $widget->get_settings( 'selected_icon' );
+		$icon_url = !empty($widget_settings['value']['url']) ? $widget_settings['value']['url'] : '' ;
+
+		if ( empty($icon_url) ) {
+			return $widget_content;
+		}
+
+        if(str_contains($widget_content, $icon_url)){
+            return $widget_content;
+        }
+
+        //get svg html element from svg source
+        $svg = file_get_contents($icon_url);
+
+        //add with dom document the icon element using elementor inside $widget_content
+        $dom = new \DOMDocument();
+        $dom->loadHTML($widget_content);
+
+		$node = $dom->getElementsByTagName('div')->item(1);
+
+		//check if is there a span element inside the widget content
+		$span = $dom->getElementsByTagName('span');
+		if($span->length > 0){
+			//loop all span elements and select the one having class 'elementor-icon'
+			$node = null;
+			foreach($span as $span_item){
+				if(str_contains($span_item->getAttribute('class'), 'elementor-icon')){
+					$node = $span_item;
+					break;
+				}
+			}
+		}
+
+        $fragment = $dom->createDocumentFragment();
+        $fragment->appendXML($svg);
+        
+        $node->appendChild($fragment);
+        
+        $widget_content = $dom->saveHTML();
+        
+        return $widget_content;
+    }
+
+    return $widget_content;
+
+}
+add_filter( 'elementor/widget/render_content', __NAMESPACE__ . '\filter_icon_render', 10, 2 );
+
+/**
  * Prevents attempts to attach an attachment to a post ID during upload.
  */
 function prevent_attaching() {
