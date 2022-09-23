@@ -715,3 +715,46 @@ class Post_Thumbnail_Saver_REST {
 }
 
 new Post_Thumbnail_Saver_REST();
+
+/**
+ * Filter REST API responses for post saves which include featured_media
+ * field and force the post meta update even if the id doesn't exist on the
+ * current site.
+ *
+ * @param \WP_HTTP_Response|\WP_Error $response
+ * @param array                       $handler
+ * @param \WP_REST_Request            $request
+ *
+ * @return \WP_HTTP_Response|\WP_Error
+ *
+ * @wp-hook rest_request_after_callbacks
+ */
+function rest_request_after_callbacks( $response, array $handler, \WP_REST_Request $request ) {
+	if ( is_media_site() ) {
+		return $response;
+	}
+
+	$featured_image = (int) $request['featured_media'] ?? null;
+
+	if ( $featured_image ) {
+		switch_to_media_site();
+		$attachment = get_post( $featured_image );
+		restore_current_blog();
+
+		$post_id = (int) $request['id'] ?? null;
+
+		if ( $attachment ) {
+			update_post_meta( $post_id, '_thumbnail_id', $featured_image );
+		} else {
+			delete_post_meta( $post_id, '_thumbnail_id' );
+		}
+
+		$data                   = $response->get_data();
+		$data['featured_media'] = $featured_image;
+		$response->set_data( $data );
+	}
+
+	return $response;
+}
+
+add_filter( 'rest_request_after_callbacks', __NAMESPACE__ . '\\rest_request_after_callbacks', 10, 3 );
