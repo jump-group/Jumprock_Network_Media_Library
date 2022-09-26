@@ -103,46 +103,69 @@ function filter_icon_render( $widget_content, $widget ) {
     if ( str_contains($widget->get_name(), 'icon') ) {
         //selected icon url
 		$widget_settings = $widget->get_settings( 'selected_icon' );
-		$icon_url = !empty($widget_settings['value']['url']) ? $widget_settings['value']['url'] : '' ;
-
-		if ( empty($icon_url) ) {
-			return $widget_content;
-		}
-
-        if(str_contains($widget_content, $icon_url)){
-            return $widget_content;
+        $media_set = false;
+        $icon_url = '';
+        if(!empty($widget_settings['value']['url'])){
+            $media_set = true;
+            $icon_url = $widget_settings['value']['url'];
         }
 
-        //get svg html element from svg source
-        $svg = file_get_contents($icon_url);
+        $media_in_widget = str_contains($widget_content, $icon_url);
 
-        //add with dom document the icon element using elementor inside $widget_content
-        $dom = new \DOMDocument();
-        $dom->loadHTML($widget_content);
+        $current_site_url = get_site_url(get_current_blog_id());
 
-		$node = $dom->getElementsByTagName('div')->item(1);
+        if($media_in_widget && str_contains($icon_url, $current_site_url)){ //no cdn. (PT)
+            $master_site_url = get_site_url(SITE_ID);
+            return str_replace($icon_url, $master_site_url."/".$icon_url, $widget_content);
+        } else if ($media_in_widget && str_contains($icon_url, 'cdn')) { //en
+            return $widget_content;
+        } else if (!$media_in_widget && !str_contains($icon_url, 'cdn')){
+            $master_site_url = get_site_url(SITE_ID);
+            return str_replace($icon_url, $master_site_url."/".$icon_url, $widget_content);
+        } else if(!$media_in_widget && str_contains($icon_url, 'cdn')){
+            if ( empty($icon_url) ) {
+                return $widget_content;
+            }
+            //get svg html element from svg source
+            $svg = file_get_contents($icon_url);
 
-		//check if is there a span element inside the widget content
-		$span = $dom->getElementsByTagName('span');
-		if($span->length > 0){
-			//loop all span elements and select the one having class 'elementor-icon'
-			$node = null;
-			foreach($span as $span_item){
-				if(str_contains($span_item->getAttribute('class'), 'elementor-icon')){
-					$node = $span_item;
-					break;
-				}
-			}
-		}
+            //add with dom document the icon element using elementor inside $widget_content
+            $dom = new \DOMDocument();
+            libxml_use_internal_errors(true);
+            $dom->loadHTML($widget_content);
+            libxml_clear_errors();
 
-        $fragment = $dom->createDocumentFragment();
-        $fragment->appendXML($svg);
-        
-        $node->appendChild($fragment);
-        
-        $widget_content = $dom->saveHTML();
-        
-        return $widget_content;
+            //check if dom contains svg element
+            $svg_element = $dom->getElementsByTagName('svg');
+            if($svg_element->length){
+                return $widget_content;
+            }
+
+            $node = $dom->getElementsByTagName('div')->item(1);
+
+            //check if is there a span element inside the widget content
+            $span = $dom->getElementsByTagName('span');
+            if($span->length > 0){
+                //loop all span elements and select the one having class 'elementor-icon'
+                $node = null;
+                foreach($span as $span_item){
+                    if(str_contains($span_item->getAttribute('class'), 'elementor-icon')){
+                        $node = $span_item;
+                        break;
+                    }
+                }
+            }
+
+
+            $fragment = $dom->createDocumentFragment();
+            $fragment->appendXML($svg);
+
+            $node->appendChild($fragment);
+
+            $widget_content = $dom->saveHTML();
+
+            return $widget_content;
+        }
     }
 
     return $widget_content;
