@@ -119,13 +119,22 @@ function filter_icon_render( $widget_content, $widget ) {
             return str_replace($icon_url, $master_site_url."/".$icon_url, $widget_content);
         } else if ($media_in_widget && str_contains($icon_url, 'cdn')) { //en
             return $widget_content;
-        } else if (!$media_in_widget && !str_contains($icon_url, 'cdn')){
-            $master_site_url = get_site_url(SITE_ID);
-            return str_replace($icon_url, $master_site_url."/".$icon_url, $widget_content);
-        } else if(!$media_in_widget && str_contains($icon_url, 'cdn')){
+        } else if(!$media_in_widget){
             if ( empty($icon_url) ) {
                 return $widget_content;
             }
+
+            if(!str_contains($icon_url, 'cdn')){
+                
+                switch_to_blog( get_site_id() );
+
+                $upload_dir = wp_get_upload_dir();
+
+                restore_current_blog();
+
+                $icon_url = str_replace($current_site_url . '/app/uploads', $upload_dir['baseurl'], $icon_url);
+            }
+
             //get svg html element from svg source
             $svg = file_get_contents($icon_url);
 
@@ -164,6 +173,8 @@ function filter_icon_render( $widget_content, $widget ) {
 
             $widget_content = $dom->saveHTML();
 
+            return $widget_content;
+        }else if (!$media_in_widget && !str_contains($icon_url, 'cdn')) {
             return $widget_content;
         }
     }
